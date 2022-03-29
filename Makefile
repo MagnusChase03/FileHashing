@@ -1,8 +1,5 @@
-main: htree.c clean
-	gcc -Wall -std=gnu99 -pthread -o htree htree.c
+htree: obj
+	gcc -o htree bin/htree.o
 
-htree: htree.c
-	gcc -Wall -std=gnu99 -pthread -o htree htree.c
-
-clean:
-	rm htree
+obj:
+	gcc -c -o bin/htree.o htree.c

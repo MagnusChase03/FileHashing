@@ -86,7 +86,7 @@ void *run(void *args)
         tInfo.id = (orginalID * 2) + 1;
         pthread_create(&leftChild, NULL, run, &tInfo);
 
-        tInfo.id = (orginalID * 2) + 1;
+        tInfo.id = (orginalID * 2) + 2;
         pthread_create(&rightChild, NULL, run, &tInfo);
 
         pthread_join(leftChild, NULL);
