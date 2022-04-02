@@ -1,23 +1,56 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <sys/stat.h>
+#include <inttypes.h>
+#include <errno.h> // for EINTR
 #include <fcntl.h>
-#include <pthread.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
-// Struct for threads
-struct info
+// Print out the usage of the program and exit.
+void Usage(char *);
+uint32_t jenkins_one_at_a_time_hash(const uint8_t *, size_t);
+
+#define BSIZE 4096
+uint32_t *htable;
+
+int main(int argc, char **argv)
 {
+    int32_t fd;
+    uint32_t nblocks;
 
-    char *filename;
-    int height;
-    int id;
-};
+    // input checking
+    if (argc != 3)
+        Usage(argv[0]);
 
-// Hash Function
-uint32_t hash(char *key, int length)
+    // open input file
+    fd = open(argv[1], O_RDWR);
+    if (fd == -1)
+    {
+        perror("open failed");
+        exit(EXIT_FAILURE);
+    }
+    // use fstat to get file size
+    // calculate nblocks
+
+    printf(" no. of blocks = %u \n", nblocks);
+
+    double start = GetTime();
+
+    // calculate hash of the input file
+
+    double end = GetTime();
+    printf("hash value = %u \n", hash);
+    printf("time taken = %f \n", (end - start));
+    close(fd);
+    return EXIT_SUCCESS;
+}
+
+uint32_t
+jenkins_one_at_a_time_hash(const uint8_t *key, size_t length)
 {
-    int i = 0;
+    size_t i = 0;
     uint32_t hash = 0;
     while (i != length)
     {
@@ -31,97 +64,8 @@ uint32_t hash(char *key, int length)
     return hash;
 }
 
-// Get block size
-int getBlockSize(char *filename)
+void Usage(char *s)
 {
-
-    int fd = open(filename, O_RDONLY);
-
-    struct stat fileStats;
-    fstat(fd, &fileStats);
-
-    int blockSize = fileStats.st_blksize;
-    return blockSize;
-}
-
-// Get number of blocks in file
-int getBlocks(char *filename)
-{
-
-    int fd = open(filename, O_RDONLY);
-
-    struct stat fileStats;
-    fstat(fd, &fileStats);
-
-    int totalSize = fileStats.st_size;
-    int blockSize = fileStats.st_blksize;
-    int blocks = totalSize / blockSize;
-
-    return blocks + 1;
-}
-
-// Read blocks of file
-void *run(void *args)
-{
-
-    struct info tInfo = *((struct info *)args);
-
-    if (tInfo.height == 1)
-    {
-
-        printf("LEAF\n");
-        return NULL;
-    }
-    else
-    {
-
-        tInfo.height -= 1;
-
-        // Create Children
-        pthread_t leftChild;
-        pthread_t rightChild;
-
-        int orginalID = tInfo.id;
-
-        tInfo.id = (orginalID * 2) + 1;
-        pthread_create(&leftChild, NULL, run, &tInfo);
-
-        tInfo.id = (orginalID * 2) + 2;
-        pthread_create(&rightChild, NULL, run, &tInfo);
-
-        pthread_join(leftChild, NULL);
-        pthread_join(rightChild, NULL);
-        printf("%d height\n", tInfo.height + 1);
-    }
-
-    return NULL;
-}
-
-int main(int argc, char **argv)
-{
-
-    // Check for usage
-    if (argc < 3)
-    {
-
-        printf("Usage: ./htree [file] [treeHeight]");
-        return 1;
-    }
-
-    // Grab command line arguments
-    char *filename = argv[1];
-    int treeHeight = atoi(argv[2]);
-
-    // Info for thread
-    struct info tInfo;
-    tInfo.filename = filename;
-    tInfo.height = treeHeight;
-    tInfo.id = 0;
-
-    // Read blocks
-    pthread_t readThread;
-    pthread_create(&readThread, NULL, run, &tInfo);
-    pthread_join(readThread, NULL);
-
-    return 0;
+    fprintf(stderr, "Usage: %s filename height \n", s);
+    exit(EXIT_FAILURE);
 }
