@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <math.h>
 #include <string.h>
+#include <time.h>
 #include <inttypes.h>
 #include <errno.h> // for EINTR
 #include <fcntl.h>
@@ -14,6 +15,7 @@
 char *filename;
 uint32_t nblocks;
 uint32_t nthreads;
+uint32_t extraBytes;
 
 // Struct for threads
 struct threadStruct
@@ -59,10 +61,21 @@ void *compute(void *arg)
 
         int blocksToRead;
 
-        if (data.id == nthreads - 1)
+        if (nthreads > nblocks)
         {
 
-            blocksToRead = nblocks - ((nthreads - 1) * (nblocks / nthreads));
+            if (data.id >= nblocks)
+            {
+
+                uint32_t *nullReturn = malloc(sizeof(uint32_t));
+                *nullReturn = 0;
+                pthread_exit(nullReturn);
+            }
+            else
+            {
+
+                blocksToRead = 1;
+            }
         }
         else
         {
@@ -70,47 +83,21 @@ void *compute(void *arg)
             blocksToRead = nblocks / nthreads;
         }
 
-        printf("%d, reading %d\n", data.id, blocksToRead);
-
         int fd = open(filename, O_RDONLY);
         lseek(fd, data.id * BSIZE * (nblocks / nthreads), SEEK_SET);
 
-        // Create holder for hashed blocks and zero out memory
-        char *hashStr = malloc(8 * blocksToRead);
-        for (int i = 0; i < 8 * blocksToRead; i++)
-        {
+        // HASHES ALL READ BLOCKS AT ONCE
+        char buffer[BSIZE * blocksToRead];
+        read(fd, buffer, BSIZE * blocksToRead);
 
-            hashStr[i] = '\0';
-        }
+        uint32_t *fullHash = malloc(sizeof(uint32_t));
+        *fullHash = hash(buffer, BSIZE * blocksToRead);
 
-        // Read all blocks and put into hashStr
-        int hashStrIndex = 0;
-        for (int i = 0; i < blocksToRead; i++)
-        {
-
-            char *buffer = malloc(BSIZE);
-            read(fd, buffer, BSIZE);
-            uint32_t hashed = hash(buffer, BSIZE);
-
-            char hashStrPrt[8];
-            sprintf(hashStrPrt, "%x", hashed);
-
-            // Concatanate read block hashes
-            for (int j = 0; j < 8; j++)
-            {
-
-                hashStr[hashStrIndex] = hashStrPrt[j];
-                hashStrIndex += 1;
-            }
-
-            free(buffer);
-        }
-
-        printf("%d:%s\n", data.id, hashStr);
+        // printf("%d: %x\n", data.id, *fullHash);
 
         close(fd);
 
-        return hashStr;
+        pthread_exit(fullHash);
     }
 
     // Create children
@@ -125,8 +112,8 @@ void *compute(void *arg)
     pthread_t leftChild;
     pthread_t rightChild;
 
-    char *leftHash;
-    char *rightHash;
+    uint32_t *leftHash;
+    uint32_t *rightHash;
 
     pthread_create(&leftChild, NULL, compute, &dataLeft);
     pthread_create(&rightChild, NULL, compute, &dataRight);
@@ -134,8 +121,78 @@ void *compute(void *arg)
     pthread_join(leftChild, &leftHash);
     pthread_join(rightChild, &rightHash);
 
-    printf("Left Hash: %s Right Hash: %s\n", leftHash, rightHash);
-    return NULL;
+    // Read blocks and hash
+    int blocksToRead;
+
+    if (nthreads > nblocks)
+    {
+
+        if (data.id >= nblocks)
+        {
+
+            uint32_t *nullReturn = malloc(sizeof(uint32_t));
+            *nullReturn = 0;
+            pthread_exit(nullReturn);
+        }
+        else
+        {
+
+            blocksToRead = 1;
+        }
+    }
+    else
+    {
+
+        blocksToRead = nblocks / nthreads;
+    }
+
+    int fd = open(filename, O_RDONLY);
+    lseek(fd, data.id * BSIZE * (nblocks / nthreads), SEEK_SET);
+
+    // HASHES ALL READ BLOCKS AT ONCE
+    char buffer[BSIZE * blocksToRead];
+    read(fd, buffer, BSIZE * blocksToRead);
+
+    uint32_t *fullHash = malloc(sizeof(uint32_t));
+    *fullHash = hash(buffer, BSIZE * blocksToRead);
+
+    // printf("%d: %x\n", data.id, *fullHash);
+
+    close(fd);
+
+    // Combine all hashes
+    char *combinedHash = malloc(24);
+
+    char thisHashStr[8];
+    sprintf(thisHashStr, "%x", *fullHash);
+
+    char leftHashStr[8];
+    sprintf(leftHashStr, "%x", *leftHash);
+
+    char rightHashStr[8];
+    sprintf(rightHashStr, "%x", *rightHash);
+
+    for (int i = 0; i < 8; i++)
+    {
+
+        combinedHash[i] = thisHashStr[i];
+    }
+
+    for (int i = 8; i < 16; i++)
+    {
+
+        combinedHash[i] = leftHashStr[i - 8];
+    }
+
+    for (int i = 16; i < 24; i++)
+    {
+
+        combinedHash[i] = rightHashStr[i - 16];
+    }
+
+    *fullHash = hash(combinedHash, 24);
+
+    pthread_exit(fullHash);
 }
 
 int main(int argc, char **argv)
@@ -156,26 +213,28 @@ int main(int argc, char **argv)
 
     struct stat fileStats;
     fstat(fd, &fileStats);
-    nblocks = (fileStats.st_size / BSIZE) + 1;
+    nblocks = fileStats.st_size / BSIZE;
 
     close(fd);
 
     printf(" no. of blocks = %u \n", nblocks);
 
-    // double start = GetTime();
+    clock_t start = clock();
 
     // calculate hash of the input file
     struct threadStruct data;
     data.height = height;
     data.id = 0;
 
+    uint32_t *fullHash = malloc(sizeof(uint32_t));
+
     pthread_t rootThread;
     pthread_create(&rootThread, NULL, compute, &data);
-    pthread_join(rootThread, NULL);
+    pthread_join(rootThread, &fullHash);
 
-    // double end = GetTime();
-    printf("hash value = %u \n", hash);
-    // printf("time taken = %f \n", (end - start));
+    clock_t end = clock();
+    printf("hash value = %x \n", *fullHash);
+    printf("time taken = %f \n", ((double) (end - start) / CLOCKS_PER_SEC));
 
     return 0;
 }
