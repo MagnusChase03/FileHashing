@@ -164,14 +164,56 @@ void *compute(void *arg)
     char *combinedHash = malloc(24);
 
     char thisHashStr[8];
-    sprintf(thisHashStr, "%x", *fullHash);
+
+    // Fill zeros if null hash / not read else convert hash to string
+    if (*fullHash == 0)
+    {
+
+        for (int i = 0; i < 8; i++)
+        {
+
+            thisHashStr[i] == "0";
+        }
+    }
+    else
+    {
+
+        sprintf(thisHashStr, "%x", *fullHash);
+    }
 
     char leftHashStr[8];
-    sprintf(leftHashStr, "%x", *leftHash);
+    if (*leftHash == 0)
+    {
+
+        for (int i = 0; i < 8; i++)
+        {
+
+            leftHashStr[i] == "0";
+        }
+    }
+    else
+    {
+
+        sprintf(leftHashStr, "%x", *leftHash);
+    }
 
     char rightHashStr[8];
-    sprintf(rightHashStr, "%x", *rightHash);
+    if (*rightHash == 0)
+    {
 
+        for (int i = 0; i < 8; i++)
+        {
+
+            rightHashStr[i] == "0";
+        }
+    }
+    else
+    {
+
+        sprintf(rightHashStr, "%x", *rightHash);
+    }
+
+    // Concatanate all hashes
     for (int i = 0; i < 8; i++)
     {
 
@@ -190,6 +232,7 @@ void *compute(void *arg)
         combinedHash[i] = rightHashStr[i - 16];
     }
 
+    // Calculate final hash and return it
     *fullHash = hash(combinedHash, 24);
 
     pthread_exit(fullHash);
@@ -234,7 +277,7 @@ int main(int argc, char **argv)
 
     clock_t end = clock();
     printf("hash value = %x \n", *fullHash);
-    printf("time taken = %f \n", ((double) (end - start) / CLOCKS_PER_SEC));
+    printf("time taken = %f \n", ((double)(end - start) / CLOCKS_PER_SEC));
 
     return 0;
 }
