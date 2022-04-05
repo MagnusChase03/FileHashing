@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <math.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <time.h>
 #include <inttypes.h>
 #include <errno.h> // for EINTR
@@ -67,7 +68,13 @@ void *compute(void *arg)
             if (data.id >= nblocks)
             {
 
-                uint32_t *nullReturn = malloc(sizeof(uint32_t));
+                uint32_t *nullReturn = mmap(NULL, sizeof(uint32_t), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+                if (nullReturn == MAP_FAILED)
+                {
+
+                    perror("Null Return Pointer Error");
+                }
+
                 *nullReturn = 0;
                 pthread_exit(nullReturn);
             }
@@ -87,10 +94,22 @@ void *compute(void *arg)
         lseek(fd, data.id * BSIZE * (nblocks / nthreads), SEEK_SET);
 
         // HASHES ALL READ BLOCKS AT ONCE
-        char buffer[BSIZE * blocksToRead];
+        char *buffer = mmap(NULL, BSIZE * blocksToRead, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+        if (buffer == MAP_FAILED)
+        {
+
+            perror("Full Hash Pointer Error");
+        }
+
         read(fd, buffer, BSIZE * blocksToRead);
 
-        uint32_t *fullHash = malloc(sizeof(uint32_t));
+        uint32_t *fullHash = mmap(NULL, sizeof(uint32_t), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+        if (fullHash == MAP_FAILED)
+        {
+
+            perror("Full Hash Pointer Error");
+        }
+
         *fullHash = hash(buffer, BSIZE * blocksToRead);
 
         // printf("%d: %x\n", data.id, *fullHash);
@@ -112,11 +131,31 @@ void *compute(void *arg)
     pthread_t leftChild;
     pthread_t rightChild;
 
-    uint32_t *leftHash;
-    uint32_t *rightHash;
+    uint32_t *leftHash = mmap(NULL, sizeof(uint32_t), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+    if (leftHash == MAP_FAILED)
+    {
 
-    pthread_create(&leftChild, NULL, compute, &dataLeft);
-    pthread_create(&rightChild, NULL, compute, &dataRight);
+        perror("Left Hash Pointer Error");
+    }
+
+    uint32_t *rightHash = mmap(NULL, sizeof(uint32_t), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+    if (rightHash == MAP_FAILED)
+    {
+
+        perror("Left Hash Pointer Error");
+    }
+
+    if (pthread_create(&leftChild, NULL, compute, &dataLeft) != 0)
+    {
+
+        perror("Thead Creation Failed");
+    }
+
+    if (pthread_create(&rightChild, NULL, compute, &dataRight) != 0)
+    {
+
+        perror("Thread Creation Failed");
+    }
 
     pthread_join(leftChild, &leftHash);
     pthread_join(rightChild, &rightHash);
@@ -130,7 +169,13 @@ void *compute(void *arg)
         if (data.id >= nblocks)
         {
 
-            uint32_t *nullReturn = malloc(sizeof(uint32_t));
+            uint32_t *nullReturn = mmap(NULL, sizeof(uint32_t), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+            if (nullReturn == MAP_FAILED)
+            {
+
+                perror("Null Return Pointer Error");
+            }
+
             *nullReturn = 0;
             pthread_exit(nullReturn);
         }
@@ -150,10 +195,22 @@ void *compute(void *arg)
     lseek(fd, data.id * BSIZE * (nblocks / nthreads), SEEK_SET);
 
     // HASHES ALL READ BLOCKS AT ONCE
-    char buffer[BSIZE * blocksToRead];
+    char *buffer = mmap(NULL, BSIZE * blocksToRead, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+    if (buffer == MAP_FAILED)
+    {
+
+        perror("Full Hash Pointer Error");
+    }
+
     read(fd, buffer, BSIZE * blocksToRead);
 
-    uint32_t *fullHash = malloc(sizeof(uint32_t));
+    uint32_t *fullHash = mmap(NULL, sizeof(uint32_t), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+    if (fullHash == MAP_FAILED)
+    {
+
+        perror("Full Hash Pointer Error");
+    }
+
     *fullHash = hash(buffer, BSIZE * blocksToRead);
 
     // printf("%d: %x\n", data.id, *fullHash);
@@ -161,7 +218,7 @@ void *compute(void *arg)
     close(fd);
 
     // Combine all hashes
-    char *combinedHash = malloc(24);
+    char combinedHash[24];
 
     char thisHashStr[8];
 
@@ -172,7 +229,7 @@ void *compute(void *arg)
         for (int i = 0; i < 8; i++)
         {
 
-            thisHashStr[i] == "0";
+            thisHashStr[i] == '0';
         }
     }
     else
@@ -188,7 +245,7 @@ void *compute(void *arg)
         for (int i = 0; i < 8; i++)
         {
 
-            leftHashStr[i] == "0";
+            leftHashStr[i] == '0';
         }
     }
     else
@@ -204,7 +261,7 @@ void *compute(void *arg)
         for (int i = 0; i < 8; i++)
         {
 
-            rightHashStr[i] == "0";
+            rightHashStr[i] == '0';
         }
     }
     else
@@ -234,6 +291,21 @@ void *compute(void *arg)
 
     // Calculate final hash and return it
     *fullHash = hash(combinedHash, 24);
+
+    // Free memory
+    int error = munmap(leftHash, sizeof(uint32_t));
+    if (error != 0)
+    {
+
+        perror("Free Left Hash Mapping Failed");
+    }
+
+    error = munmap(rightHash, sizeof(uint32_t));
+    if (error != 0)
+    {
+
+        perror("Free Left Hash Mapping Failed");
+    }
 
     pthread_exit(fullHash);
 }
