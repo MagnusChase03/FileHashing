@@ -16,7 +16,6 @@
 char *filename;
 uint32_t nblocks;
 uint32_t nthreads;
-uint32_t extraBytes;
 
 // Struct for threads
 struct threadStruct
@@ -73,6 +72,7 @@ void *compute(void *arg)
                 {
 
                     perror("Null Return Pointer Error");
+                    exit(1);
                 }
 
                 *nullReturn = 0;
@@ -99,6 +99,7 @@ void *compute(void *arg)
         {
 
             perror("Full Hash Pointer Error");
+            exit(1);
         }
 
         read(fd, buffer, BSIZE * blocksToRead);
@@ -108,6 +109,7 @@ void *compute(void *arg)
         {
 
             perror("Full Hash Pointer Error");
+            exit(1);
         }
 
         *fullHash = hash(buffer, BSIZE * blocksToRead);
@@ -136,6 +138,7 @@ void *compute(void *arg)
     {
 
         perror("Left Hash Pointer Error");
+        exit(1);
     }
 
     uint32_t *rightHash = mmap(NULL, sizeof(uint32_t), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
@@ -143,18 +146,21 @@ void *compute(void *arg)
     {
 
         perror("Left Hash Pointer Error");
+        exit(1);
     }
 
     if (pthread_create(&leftChild, NULL, compute, &dataLeft) != 0)
     {
 
         perror("Thead Creation Failed");
+        exit(1);
     }
 
     if (pthread_create(&rightChild, NULL, compute, &dataRight) != 0)
     {
 
         perror("Thread Creation Failed");
+        exit(1);
     }
 
     pthread_join(leftChild, &leftHash);
@@ -174,6 +180,7 @@ void *compute(void *arg)
             {
 
                 perror("Null Return Pointer Error");
+                exit(1);
             }
 
             *nullReturn = 0;
@@ -200,6 +207,7 @@ void *compute(void *arg)
     {
 
         perror("Full Hash Pointer Error");
+        exit(1);
     }
 
     read(fd, buffer, BSIZE * blocksToRead);
@@ -209,6 +217,7 @@ void *compute(void *arg)
     {
 
         perror("Full Hash Pointer Error");
+        exit(1);
     }
 
     *fullHash = hash(buffer, BSIZE * blocksToRead);
@@ -298,6 +307,7 @@ void *compute(void *arg)
     {
 
         perror("Free Left Hash Mapping Failed");
+        exit(1);
     }
 
     error = munmap(rightHash, sizeof(uint32_t));
@@ -305,6 +315,7 @@ void *compute(void *arg)
     {
 
         perror("Free Left Hash Mapping Failed");
+        exit(1);
     }
 
     pthread_exit(fullHash);
@@ -334,7 +345,9 @@ int main(int argc, char **argv)
 
     printf(" no. of blocks = %u \n", nblocks);
 
-    clock_t start = clock();
+    struct timespec start, end;
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
     // calculate hash of the input file
     struct threadStruct data;
@@ -347,9 +360,13 @@ int main(int argc, char **argv)
     pthread_create(&rootThread, NULL, compute, &data);
     pthread_join(rootThread, &fullHash);
 
-    clock_t end = clock();
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    double elapsedTime = (end.tv_sec - start.tv_sec) * 1e9;
+    elapsedTime = (elapsedTime + (end.tv_nsec - start.tv_nsec)) * 1e-9;
+
     printf("hash value = %x \n", *fullHash);
-    printf("time taken = %f \n", ((double)(end - start) / CLOCKS_PER_SEC));
+    printf("time taken = %f \n", (double)elapsedTime);
 
     return 0;
 }
