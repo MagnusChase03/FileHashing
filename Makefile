@@ -3,4 +3,4 @@ run: htree
 	./htree test.txt 2
 
 htree: 
-	gcc -g -o htree htree.c -lm -pthread
+	gcc -g -o htree htree.c -lm -pthread -Wall

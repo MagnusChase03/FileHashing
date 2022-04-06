@@ -232,48 +232,21 @@ void *compute(void *arg)
     char thisHashStr[8];
 
     // Fill zeros if null hash / not read else convert hash to string
-    if (*fullHash == 0)
-    {
-
-        for (int i = 0; i < 8; i++)
-        {
-
-            thisHashStr[i] == '0';
-        }
-    }
-    else
+    if (*fullHash != 0)
     {
 
         sprintf(thisHashStr, "%x", *fullHash);
     }
 
     char leftHashStr[8];
-    if (*leftHash == 0)
-    {
-
-        for (int i = 0; i < 8; i++)
-        {
-
-            leftHashStr[i] == '0';
-        }
-    }
-    else
+    if (*leftHash != 0)
     {
 
         sprintf(leftHashStr, "%x", *leftHash);
     }
 
     char rightHashStr[8];
-    if (*rightHash == 0)
-    {
-
-        for (int i = 0; i < 8; i++)
-        {
-
-            rightHashStr[i] == '0';
-        }
-    }
-    else
+    if (*rightHash != 0)
     {
 
         sprintf(rightHashStr, "%x", *rightHash);
