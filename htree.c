@@ -204,13 +204,13 @@ void *calculateHash(void *args)
 
             uint8_t *buffer;
 
-            buffer = mmap(NULL, blockSize * blocksToRead, PROT_READ, MAP_PRIVATE, fd, data.id * blockSize * blocksToRead);
+            buffer = mmap(NULL, (long int) blockSize * blocksToRead, PROT_READ, MAP_PRIVATE, fd, (long int) data.id * blockSize * blocksToRead);
 
             uint32_t *fullHash = malloc(sizeof(uint32_t));
-            *fullHash = hash(buffer, blockSize * blocksToRead);
+            *fullHash = hash(buffer, (long int) blockSize * blocksToRead);
 
             close(fd);
-            munmap(buffer, blockSize * blocksToRead);
+            munmap(buffer, (long int) blockSize * blocksToRead);
 
             pthread_exit(fullHash);
         }
